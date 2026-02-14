@@ -82,13 +82,13 @@ body{cursor:none}
   <h1 class="ob-t">Говорите.<br><em>Смотрите.</em></h1>
   <p class="ob-s">Начните говорить о себе — привычках, желаниях, мечтах. MAX слушает и строит вашу личную карту прямо сейчас, в 3D.</p>
   <div class="ptabs">
-   <button class="pt on" data-p="anthropic">Anthropic · Haiku 4.5</button>
-   <button class="pt" data-p="openai">OpenAI · GPT-4.1 nano</button>
+   <button class="pt" data-p="anthropic">Anthropic · Haiku 4.5</button>
+   <button class="pt on" data-p="openai">OpenAI · GPT-4.1 nano</button>
   </div>
   <div class="cost-row">
-   <div class="cp" id="c1">Input: <span id="cv1">$1/M</span></div>
-   <div class="cp" id="c2">Output: <span id="cv2">$5/M</span></div>
-   <div class="cp">Сессия: <span id="cv3" style="color:var(--g)">~$0.002</span></div>
+   <div class="cp" id="c1">Input: <span id="cv1">$0.10/M</span></div>
+   <div class="cp" id="c2">Output: <span id="cv2">$0.40/M</span></div>
+   <div class="cp">Сессия: <span id="cv3" style="color:var(--g)">~$0.0003</span></div>
   </div>
   <button id="btn-go">Начать →</button>
   <div class="ob-hint">Использует Web Speech API (бесплатно) · ключи на сервере, не в браузере</div>
@@ -141,7 +141,7 @@ document.querySelectorAll('button,a').forEach(el=>{
 });
 
 // ── PROVIDER SELECT ──
-let prov='anthropic';
+let prov='openai';
 const COSTS={anthropic:['$1/M','$5/M','~$0.002'],openai:['$0.10/M','$0.40/M','~$0.0003']};
 document.querySelectorAll('.pt').forEach(t=>t.addEventListener('click',()=>{
  prov=t.dataset.p;document.querySelectorAll('.pt').forEach(x=>x.classList.remove('on'));t.classList.add('on');
@@ -218,7 +218,7 @@ let fr=0;
 window.addEventListener('resize',()=>{CAM.aspect=innerWidth/innerHeight;CAM.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});
 
 // ── APP ──
-let providerUsed='anthropic';
+let providerUsed='openai';
 let rec=null,listening=false,finalTx='',pending='',ptmr=null;
 
 document.getElementById('btn-go').addEventListener('click',()=>{
