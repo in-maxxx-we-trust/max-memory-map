@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAX — Live Memory Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#030308;--gold:#C8A97E;--gd:#6a5a3f;--w:#F2EDE6;--dim:#5A5650;--r:#E05252;--g:#4CAF88;--b:#4FC3F7;--p:#CE93D8;--o:#FF8A65;--pk:#F48FB1;--br:rgba(200,169,126,.13);--br2:rgba(200,169,126,.32)}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'DM Mono',monospace;color:var(--w)}
+body{cursor:none}
+#C{width:5px;height:5px;background:var(--gold);border-radius:50%;position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-50%)}
+#CR{width:26px;height:26px;border:1px solid rgba(200,169,126,.35);border-radius:50%;position:fixed;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:left .08s,top .08s,transform .2s}
+#cv{position:fixed;inset:0;z-index:1}
+/* ONBOARDING */
+#OB{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+#OB.out{animation:fbOut .9s ease forwards;pointer-events:none}
+@keyframes fbOut{to{opacity:0}}
+.obi{display:flex;flex-direction:column;align-items:center;gap:36px;max-width:520px;width:92%;text-align:center;animation:rise 1.1s cubic-bezier(.16,1,.3,1)}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+.ob-ey{font-size:9px;letter-spacing:4px;color:var(--gd);text-transform:uppercase;display:flex;align-items:center;gap:14px}
+.ob-ey::before,.ob-ey::after{content:'';flex:1;height:1px;background:var(--br)}
+.ob-t{font-family:'Cormorant Garamond',serif;font-size:clamp(52px,9vw,96px);font-weight:300;line-height:.92;letter-spacing:-2px}
+.ob-t em{font-style:italic;color:var(--gold);display:block}
+.ob-s{font-size:11px;color:var(--dim);line-height:1.9;max-width:380px}
+.ptabs{display:flex;gap:2px;width:100%}
+.pt{flex:1;padding:11px 0;border:1px solid var(--br);background:transparent;color:var(--dim);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;cursor:none;transition:all .25s}
+.pt.on{background:rgba(200,169,126,.08);border-color:var(--br2);color:var(--gold)}
+.cost-row{display:flex;gap:2px;width:100%;justify-content:center}
+.cp{padding:5px 16px;border:1px solid var(--br);font-size:9px;color:var(--dim);letter-spacing:1px}
+.cp span{color:var(--g)}
+#btn-go{width:100%;padding:14px;background:var(--gold);border:none;color:#030308;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:4px;text-transform:uppercase;cursor:none;transition:all .3s}
+#btn-go:hover{background:var(--w);transform:translateY(-1px)}
+.ob-hint{font-size:9px;color:var(--dim);letter-spacing:.5px;line-height:1.7}
+/* HUD */
+#HUD{position:fixed;inset:0;z-index:10;pointer-events:none;display:none}
+#HUD.on{display:block}
+#tb{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:24px 40px;background:linear-gradient(to bottom,rgba(3,3,8,.88) 0%,transparent 100%);pointer-events:all}
+.logo{font-family:'Cormorant Garamond',serif;font-size:20px;letter-spacing:7px;color:var(--w)}
+.logo b{color:var(--gold);font-weight:400}
+.sch{display:flex;align-items:center;gap:10px;padding:7px 18px;border:1px solid var(--br);background:rgba(3,3,8,.7);font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase}
+.sd{width:5px;height:5px;border-radius:50%;background:var(--dim);flex-shrink:0}
+.sd.l{background:var(--r);animation:bk 1s infinite}
+.sd.t{background:var(--gold);animation:bk .45s infinite}
+.sd.r{background:var(--g)}
+@keyframes bk{0%,100%{opacity:1}50%{opacity:.3}}
+#txw{position:absolute;bottom:0;left:0;right:0;padding:24px 48px 28px;background:linear-gradient(to top,rgba(3,3,8,.9) 0%,transparent 100%)}
+#tx{font-family:'Cormorant Garamond',serif;font-size:clamp(14px,1.8vw,20px);font-weight:300;font-style:italic;color:rgba(242,237,230,.55);line-height:1.6;max-width:680px;margin:0 auto;text-align:center;min-height:48px}
+#im{color:rgba(200,169,126,.35)}
+#ma{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:all}
+#mic{width:68px;height:68px;border-radius:50%;background:rgba(200,169,126,.08);border:1px solid var(--br2);display:flex;align-items:center;justify-content:center;cursor:none;transition:all .3s;position:relative}
+#mic::after{content:'';position:absolute;inset:-8px;border-radius:50%;border:1px solid rgba(200,169,126,.1);pointer-events:none;transition:all .3s}
+#mic:hover{background:rgba(200,169,126,.17);border-color:var(--gold)}
+#mic:hover::after{inset:-18px;opacity:.35}
+#mic.on{background:rgba(224,82,82,.12);border-color:rgba(224,82,82,.45);animation:mr 2s ease infinite}
+@keyframes mr{0%,100%{box-shadow:0 0 0 0 rgba(224,82,82,.25)}60%{box-shadow:0 0 0 26px rgba(224,82,82,0)}}
+#ml{font-size:9px;letter-spacing:3px;color:var(--dim);text-transform:uppercase}
+#leg{position:absolute;top:90px;right:36px;display:flex;flex-direction:column;gap:7px}
+.li{display:flex;align-items:center;gap:9px;font-size:9px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase}
+.ld{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+#cnt{position:absolute;top:90px;left:40px}
+.cn{font-family:'Cormorant Garamond',serif;font-size:72px;font-weight:300;color:rgba(200,169,126,.1);line-height:1}
+.cl{font-size:9px;letter-spacing:3px;color:var(--gd);text-transform:uppercase;margin-top:4px}
+#rst{position:absolute;top:24px;left:50%;transform:translateX(-50%);background:transparent;border:1px solid var(--br);color:var(--dim);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;padding:7px 18px;cursor:none;pointer-events:all;transition:all .3s}
+#rst:hover{border-color:var(--br2);color:var(--w)}
+#TT{position:fixed;pointer-events:none;z-index:20;background:rgba(3,3,8,.93);border:1px solid var(--br2);padding:10px 16px;display:none;transform:translate(18px,-50%)}
+.tn{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:300;color:var(--w)}
+.tc{font-size:9px;letter-spacing:2px;margin-top:3px;text-transform:uppercase}
+#FL{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Cormorant Garamond',serif;font-size:clamp(60px,11vw,140px);font-weight:300;font-style:italic;color:var(--gold);pointer-events:none;z-index:5;opacity:0;text-shadow:0 0 80px rgba(200,169,126,.18);transition:opacity .15s;letter-spacing:-3px}
+#ERR{position:fixed;bottom:130px;left:50%;transform:translateX(-50%);background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.28);padding:10px 24px;font-size:10px;letter-spacing:2px;color:rgba(224,82,82,.8);display:none;z-index:100;text-align:center;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="C"></div><div id="CR"></div>
+<canvas id="cv"></canvas>
+
+<div id="OB">
+ <div class="obi">
+  <div class="ob-ey">MAX · Live Memory Map</div>
+  <h1 class="ob-t">Говорите.<br><em>Смотрите.</em></h1>
+  <p class="ob-s">Начните говорить о себе — привычках, желаниях, мечтах. MAX слушает и строит вашу личную карту прямо сейчас, в 3D.</p>
+  <div class="ptabs">
+   <button class="pt on" data-p="anthropic">Anthropic · Haiku 4.5</button>
+   <button class="pt" data-p="openai">OpenAI · GPT-4.1 nano</button>
+  </div>
+  <div class="cost-row">
+   <div class="cp" id="c1">Input: <span id="cv1">$1/M</span></div>
+   <div class="cp" id="c2">Output: <span id="cv2">$5/M</span></div>
+   <div class="cp">Сессия: <span id="cv3" style="color:var(--g)">~$0.002</span></div>
+  </div>
+  <button id="btn-go">Начать →</button>
+  <div class="ob-hint">Использует Web Speech API (бесплатно) · ключи на сервере, не в браузере</div>
+ </div>
+</div>
+
+<div id="HUD">
+ <div id="tb">
+  <div class="logo">M<b>A</b>X <span style="font-size:11px;letter-spacing:4px;color:var(--dim)">MEMORY MAP</span></div>
+  <div class="sch"><div class="sd" id="sd"></div><span id="st">Готов</span></div>
+ </div>
+ <div id="cnt"><div class="cn" id="cn">0</div><div class="cl">концептов</div></div>
+ <div id="leg">
+  <div class="li"><div class="ld" style="background:var(--gold)"></div>Желания</div>
+  <div class="li"><div class="ld" style="background:var(--g)"></div>Ценности</div>
+  <div class="li"><div class="ld" style="background:var(--r)"></div>Привычки</div>
+  <div class="li"><div class="ld" style="background:var(--pk)"></div>Мечты</div>
+  <div class="li"><div class="ld" style="background:var(--b)"></div>Люди</div>
+  <div class="li"><div class="ld" style="background:var(--w)"></div>Интересы</div>
+  <div class="li"><div class="ld" style="background:var(--p)"></div>Места</div>
+  <div class="li"><div class="ld" style="background:var(--o)"></div>Страхи</div>
+ </div>
+ <div id="txw"><div id="tx"><span id="ft"></span><span id="im"></span></div></div>
+ <div id="ma">
+  <button id="mic">
+   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-linecap="round">
+    <rect x="9" y="2" width="6" height="12" rx="3"/>
+    <path d="M5 10c0 3.866 3.134 7 7 7s7-3.134 7-7"/>
+    <line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
+   </svg>
+  </button>
+  <div id="ml">Нажмите и говорите</div>
+ </div>
+ <button id="rst">↺ сначала</button>
+</div>
+
+<div id="FL"></div>
+<div id="TT"><div class="tn" id="tn"></div><div class="tc" id="tc"></div></div>
+<div id="ERR"></div>
+
+<script>
+// ── CURSOR ──
+const C=document.getElementById('C'),CR=document.getElementById('CR');
+let mx=innerWidth/2,my=innerHeight/2,rx=mx,ry=my;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;C.style.cssText=`left:${mx}px;top:${my}px`});
+(function rl(){rx+=(mx-rx)*.09;ry+=(my-ry)*.09;CR.style.left=rx+'px';CR.style.top=ry+'px';requestAnimationFrame(rl)})();
+document.querySelectorAll('button,a').forEach(el=>{
+ el.addEventListener('mouseenter',()=>CR.style.transform='translate(-50%,-50%) scale(2.2)');
+ el.addEventListener('mouseleave',()=>CR.style.transform='translate(-50%,-50%) scale(1)');
+});
+
+// ── PROVIDER SELECT ──
+let prov='anthropic';
+const COSTS={anthropic:['$1/M','$5/M','~$0.002'],openai:['$0.10/M','$0.40/M','~$0.0003']};
+document.querySelectorAll('.pt').forEach(t=>t.addEventListener('click',()=>{
+ prov=t.dataset.p;document.querySelectorAll('.pt').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+ const c=COSTS[prov];document.getElementById('cv1').textContent=c[0];document.getElementById('cv2').textContent=c[1];document.getElementById('cv3').textContent=c[2];
+}));
+
+// ── THREE ──
+const R=new THREE.WebGLRenderer({canvas:document.getElementById('cv'),antialias:true});
+R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.setClearColor(0x030308,1);
+const S=new THREE.Scene();S.fog=new THREE.FogExp2(0x030308,.0018);
+const CAM=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,2000);CAM.position.set(0,0,300);
+S.add(new THREE.AmbientLight(0xffffff,.15));
+const pl1=new THREE.PointLight(0xC8A97E,3,600);pl1.position.set(0,0,120);S.add(pl1);
+S.add(Object.assign(new THREE.PointLight(0x4FC3F7,.6,400),{position:new THREE.Vector3(200,100,-100)}));
+S.add(Object.assign(new THREE.PointLight(0xF48FB1,.4,300),{position:new THREE.Vector3(-150,-80,50)}));
+
+// Stars
+(()=>{const N=4200,g=new THREE.BufferGeometry(),p=new Float32Array(N*3);for(let i=0;i<N*3;i++)p[i]=(Math.random()-.5)*2600;g.setAttribute('position',new THREE.BufferAttribute(p,3));S.add(new THREE.Points(g,new THREE.PointsMaterial({color:0xF2EDE6,size:.32,transparent:true,opacity:.3})))})();
+(()=>{const N=600,g=new THREE.BufferGeometry(),p=new Float32Array(N*3);for(let i=0;i<N;i++){const r=280+Math.random()*600,ph=Math.random()*Math.PI*2,th=Math.acos(2*Math.random()-1);p[i*3]=r*Math.sin(th)*Math.cos(ph);p[i*3+1]=r*Math.cos(th);p[i*3+2]=r*Math.sin(th)*Math.sin(ph)}g.setAttribute('position',new THREE.BufferAttribute(p,3));S.add(new THREE.Points(g,new THREE.PointsMaterial({color:0xC8A97E,size:.7,transparent:true,opacity:.09})))})();
+
+// Center
+const cM=new THREE.Mesh(new THREE.SphereGeometry(14,64,64),new THREE.MeshPhongMaterial({color:0xC8A97E,emissive:0x3a2808,shininess:100,transparent:true,opacity:.96}));S.add(cM);
+[22,28,36].forEach((r,i)=>{const m=new THREE.Mesh(new THREE.TorusGeometry(r,.3,8,80),new THREE.MeshBasicMaterial({color:0xC8A97E,transparent:true,opacity:.1-i*.02}));m.userData={ring:1,spd:.004-i*.001,ax:new THREE.Vector3(Math.random(),Math.random(),1).normalize()};S.add(m)});
+
+function mkSpr(text,col,fs){const c=document.createElement('canvas');c.width=320;c.height=80;const x=c.getContext('2d');x.font=`300 ${fs||40}px 'Cormorant Garamond',serif`;x.fillStyle=col||'#F2EDE6';x.textAlign='center';x.textBaseline='middle';x.fillText(text,160,40);const t=new THREE.CanvasTexture(c);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false}));sp.scale.set(80,20,1);return sp}
+const ys=mkSpr('ВЫ','#C8A97E',52);ys.position.set(0,-22,0);S.add(ys);
+
+// Dust
+const dust=[];const dg=new THREE.Group();S.add(dg);
+for(let i=0;i<60;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.4+Math.random()*.4,4,4),new THREE.MeshBasicMaterial({color:0xC8A97E,transparent:true,opacity:.08+Math.random()*.18}));const r=18+Math.random()*28,ph=Math.random()*Math.PI*2,th=Math.acos(2*Math.random()-1);m.position.set(r*Math.sin(th)*Math.cos(ph),r*Math.cos(th),r*Math.sin(th)*Math.sin(ph));m.userData={r,ph,th,spd:.002+Math.random()*.005,vph:(Math.random()-.5)*.003};dg.add(m);dust.push(m)}
+
+const CH={желание:0xC8A97E,ценность:0x4CAF88,привычка:0xE05252,мечта:0xF48FB1,человек:0x4FC3F7,интерес:0xF2EDE6,место:0xCE93D8,страх:0xFF8A65,другое:0x9E9E9E};
+const CC={желание:'#C8A97E',ценность:'#4CAF88',привычка:'#E05252',мечта:'#F48FB1',человек:'#4FC3F7',интерес:'#F2EDE6',место:'#CE93D8',страх:'#FF8A65',другое:'#9E9E9E'};
+const CR2={желание:'Желания',ценность:'Ценности',привычка:'Привычки',мечта:'Мечты',человек:'Люди',интерес:'Интересы',место:'Места',страх:'Страхи',другое:'Прочее'};
+const nodes=[],edges=[],nmap={};
+
+function addNode(name,cat){
+ if(nmap[name]!==undefined)return nmap[name];
+ const idx=nodes.length;nmap[name]=idx;const hex=CH[cat]||0x9E9E9E,r=3.5+Math.random()*4;
+ const mesh=new THREE.Mesh(new THREE.SphereGeometry(r,32,32),new THREE.MeshPhongMaterial({color:hex,emissive:hex,emissiveIntensity:.2,shininess:70,transparent:true,opacity:0}));
+ const ig=new THREE.Mesh(new THREE.SphereGeometry(r*2.2,16,16),new THREE.MeshBasicMaterial({color:hex,transparent:true,opacity:0,side:THREE.BackSide}));mesh.add(ig);
+ const os=new THREE.Mesh(new THREE.SphereGeometry(r*3.8,8,8),new THREE.MeshBasicMaterial({color:hex,transparent:true,opacity:0,side:THREE.BackSide}));mesh.add(os);
+ const lbl=mkSpr(name,'#F2EDE6',38);lbl.position.set(0,-(r+10),0);lbl.visible=false;mesh.add(lbl);
+ const dist=55+Math.random()*115,phi=Math.random()*Math.PI*2,theta=Math.acos(2*Math.random()-1);
+ const tgt=new THREE.Vector3(dist*Math.sin(theta)*Math.cos(phi),dist*Math.cos(theta),dist*Math.sin(theta)*Math.sin(phi));
+ mesh.position.set((Math.random()-.5)*8,(Math.random()-.5)*8,(Math.random()-.5)*8);S.add(mesh);
+ const node={name,cat,mesh,ig,igM:ig.material,os,osM:os.material,lbl,mat:mesh.material,tgt,vel:new THREE.Vector3(),conns:[],r,idx,ph:Math.random()*Math.PI*2};
+ nodes.push(node);animIn(node);flash(CR2[cat]||cat);document.getElementById('cn').textContent=nodes.length;return idx;
+}
+function animIn(n){let t=0;const sp=n.mesh.position.clone();(function st(){t+=.018;const e=1-Math.pow(1-Math.min(t,1),4);n.mesh.position.lerpVectors(sp,n.tgt,e);n.mat.opacity=Math.min(t,1)*.9;n.igM.opacity=Math.min(t,1)*.09;n.osM.opacity=Math.min(t,1)*.04;if(t<1)requestAnimationFrame(st);else n.lbl.visible=true})()}
+function addEdge(a,b){const key=[a,b].sort().join('-');if(edges.find(e=>e.userData.key===key))return;const g=new THREE.BufferGeometry().setFromPoints([nodes[a].mesh.position.clone(),nodes[b].mesh.position.clone()]);const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xC8A97E,transparent:true,opacity:.1}));l.userData={key,a,b};S.add(l);edges.push(l);nodes[a].conns.push(b);nodes[b].conns.push(a)}
+function tickE(){edges.forEach(l=>{const a=nodes[l.userData.a],b=nodes[l.userData.b];const p=l.geometry.attributes.position;p.setXYZ(0,a.mesh.position.x,a.mesh.position.y,a.mesh.position.z);p.setXYZ(1,b.mesh.position.x,b.mesh.position.y,b.mesh.position.z);p.needsUpdate=true})}
+function forces(){const REP=5500,D=.82;nodes.forEach((ni,i)=>{const f=new THREE.Vector3();nodes.forEach((nj,j)=>{if(i===j)return;const d=ni.mesh.position.clone().sub(nj.mesh.position);const l=Math.max(d.length(),8);d.normalize().multiplyScalar(REP/(l*l));f.add(d)});f.add(ni.tgt.clone().sub(ni.mesh.position).multiplyScalar(.004));const fc=ni.mesh.position.clone().normalize();if(ni.mesh.position.length()<28)f.add(fc.multiplyScalar(80));ni.vel.add(f.multiplyScalar(.016));ni.vel.multiplyScalar(D);ni.mesh.position.add(ni.vel)})}
+
+// Raycaster
+const ray=new THREE.Raycaster(),m2=new THREE.Vector2();let hov=null;const TT=document.getElementById('TT');
+document.addEventListener('mousemove',e=>{m2.x=(e.clientX/innerWidth)*2-1;m2.y=-(e.clientY/innerHeight)*2+1;TT.style.left=e.clientX+'px';TT.style.top=e.clientY+'px'});
+function chkR(){if(!nodes.length)return;ray.setFromCamera(m2,CAM);const hits=ray.intersectObjects(nodes.map(n=>n.mesh));if(hits.length){const n=nodes.find(x=>x.mesh===hits[0].object);if(n){hov=n;TT.style.display='block';document.getElementById('tn').textContent=n.name;const tc=document.getElementById('tc');tc.textContent=CR2[n.cat]||n.cat;tc.style.color=CC[n.cat]}}else{hov=null;TT.style.display='none'}}
+
+const FL=document.getElementById('FL');let ft2;
+function flash(t){FL.textContent=t;FL.style.opacity='.5';clearTimeout(ft2);ft2=setTimeout(()=>FL.style.opacity='0',1100)}
+
+let ca=0,ctx=0,cty=0;
+document.addEventListener('mousemove',e=>{ctx=(e.clientX/innerWidth-.5)*24;cty=-(e.clientY/innerHeight-.5)*18});
+let fr=0;
+(function loop(){requestAnimationFrame(loop);fr++;
+ ca+=.00025;CAM.position.x+=(ctx*.4+Math.sin(ca)*15-CAM.position.x)*.018;CAM.position.y+=(cty*.4-CAM.position.y)*.018;CAM.lookAt(0,0,0);
+ const pu=1+Math.sin(fr*.035)*.045;cM.scale.setScalar(pu);pl1.intensity=2+Math.sin(fr*.035)*.8;
+ S.children.forEach(c=>{if(c.userData.ring)c.rotateOnAxis(c.userData.ax,c.userData.spd)});
+ dust.forEach(d=>{const u=d.userData;u.ph+=u.spd;u.th+=u.vph;const r=u.r+Math.sin(fr*.015+u.ph)*4;d.position.set(r*Math.sin(u.th)*Math.cos(u.ph),r*Math.cos(u.th),r*Math.sin(u.th)*Math.sin(u.ph))});
+ nodes.forEach(n=>{const isH=n===hov;const b=1+Math.sin(fr*.028+n.ph)*.05;n.mesh.scale.setScalar(b*(isH?1.5:1));n.igM.opacity=(isH?.25:.09)+Math.sin(fr*.028+n.ph)*.02;n.osM.opacity=isH?.06:0;if(n.lbl)n.lbl.visible=nodes.length<26||isH});
+ if(nodes.length>0&&fr%3===0)forces();tickE();chkR();R.render(S,CAM);
+})();
+window.addEventListener('resize',()=>{CAM.aspect=innerWidth/innerHeight;CAM.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});
+
+// ── APP ──
+let providerUsed='anthropic';
+let rec=null,listening=false,finalTx='',pending='',ptmr=null;
+
+document.getElementById('btn-go').addEventListener('click',()=>{
+ providerUsed=prov;
+ const ob=document.getElementById('OB');ob.classList.add('out');
+ setTimeout(()=>{ob.style.display='none';document.getElementById('HUD').classList.add('on');initSpeech();setSt('r','Готов')},900);
+});
+
+// SPEECH
+function initSpeech(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){setSt('r','Только Chrome/Edge');return}
+ rec=new SR();rec.lang='ru-RU';rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+ rec.onstart=()=>{listening=true;document.getElementById('mic').classList.add('on');document.getElementById('ml').textContent='Слушаю...';setSt('l','Слушаю')};
+ rec.onend=()=>{listening=false;document.getElementById('mic').classList.remove('on');document.getElementById('ml').textContent='Нажмите и говорите';setSt('r','Готов')};
+ rec.onresult=e=>{let im='';for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal){finalTx+=t+' ';pending+=t+' ';sched()}else im+=t}document.getElementById('ft').textContent=finalTx.slice(-240);document.getElementById('im').textContent=im};
+ rec.onerror=e=>console.warn(e.error);
+}
+function sched(){clearTimeout(ptmr);ptmr=setTimeout(()=>{if(pending.trim().length>12){parse(pending);pending=''}},2200)}
+
+document.getElementById('mic').addEventListener('click',()=>{
+ if(!rec)return;
+ if(listening)rec.stop();
+ else{finalTx='';document.getElementById('ft').textContent='';try{rec.start()}catch(e){}}
+});
+
+// API CALL — через /api/chat (serverless function на Vercel)
+async function parse(text){
+ setSt('t','Анализирую...');
+ try{
+  const res=await fetch('/api/chat',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({text,knownConcepts:Object.keys(nmap),provider:providerUsed})
+  });
+  const data=await res.json();
+  if(data.error){showErr(data.error);setSt('r','Ошибка');return}
+  if(data.concepts)data.concepts.forEach(c=>{const idx=addNode(c.name,c.category||'другое');if(c.connections)c.connections.forEach(cn=>{if(nmap[cn]!==undefined)addEdge(idx,nmap[cn])})});
+  setSt('l','Слушаю');
+ }catch(e){console.error(e);showErr('Ошибка запроса');setSt('r','Ошибка')}
+}
+
+function setSt(s,t){document.getElementById('sd').className='sd '+s;document.getElementById('st').textContent=t}
+let etmr;function showErr(m){const el=document.getElementById('ERR');el.textContent=m;el.style.display='block';clearTimeout(etmr);etmr=setTimeout(()=>el.style.display='none',3500)}
+
+document.getElementById('rst').addEventListener('click',()=>{
+ nodes.forEach(n=>S.remove(n.mesh));edges.forEach(e=>S.remove(e));
+ nodes.length=0;edges.length=0;Object.keys(nmap).forEach(k=>delete nmap[k]);
+ finalTx='';pending='';document.getElementById('ft').textContent='';document.getElementById('im').textContent='';document.getElementById('cn').textContent='0';
+ if(listening&&rec)rec.stop();setSt('r','Готов');
+});
+
+// DEMO
+const DEMO=[{n:'свобода',c:'ценность'},{n:'путешествия',c:'интерес'},{n:'близкие',c:'человек'},{n:'творчество',c:'желание'},{n:'здоровье',c:'ценность'},{n:'кофе',c:'привычка'},{n:'Токио',c:'место'},{n:'своё дело',c:'мечта'}];
+DEMO.forEach((d,i)=>setTimeout(()=>addNode(d.n,d.c),i*700+800));
+setTimeout(()=>[[0,1],[0,2],[1,6],[3,0],[4,0],[7,3],[5,4]].forEach(([a,b])=>{if(nodes[a]&&nodes[b])addEdge(a,b)}),7500);
+</script>
+</body>
+</html>
